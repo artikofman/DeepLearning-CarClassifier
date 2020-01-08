@@ -24,7 +24,7 @@ class ConvNetwork:
                 final layers of convolutional nn. The numbers in this tuple has to be ordered by the order of
                 corresponding layers, starting with the first fc-layer to the the last one.
             train_classes_ratio: An object representing the ratio of vehicles-images to non-vehicles-images in the
-                training step. A ratio of 2-to-1, e.g., means, that the network will be fed with TODO
+                training step. A ratio of 2-to-1, e.g., means, that the network has to be fed TODO
         """
 
         pass
