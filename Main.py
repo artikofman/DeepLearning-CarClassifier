@@ -1,3 +1,4 @@
+from ConvNetwork import ConvNetwork
 from Network import Network
 from LogisticRegression import LogisticRegression
 from fractions import Fraction
@@ -5,6 +6,7 @@ from tkinter import messagebox
 
 
 def main():
+    """
     log_regression = LogisticRegression(vehicles_train_path="C:\\Users\\orik\\DLImages\\vehicles\\Train\\",
                                         non_vehicles_train_path="C:\\Users\\orik\\DLImages\\non-vehicles\\Train\\",
                                         vehicles_test_path="C:\\Users\\orik\\DLImages\\vehicles\\Test\\",
@@ -28,6 +30,18 @@ def main():
     net.run(net.RUN_TRAIN)
     net.run(net.RUN_TEST)
     net.close()
+    """
+
+    cnn = ConvNetwork(vehicles_train_path="C:\\Users\\orik\\DLImages\\vehicles\\Train\\",
+                      non_vehicles_train_path="C:\\Users\\orik\\DLImages\\non-vehicles\\Train\\",
+                      vehicles_test_path="C:\\Users\\orik\\DLImages\\vehicles\\Test\\",
+                      non_vehicles_test_path="C:\\Users\\orik\\DLImages\\non-vehicles\\Test\\",
+                      image_shape=(64, 64), conv_layers_num_kernels=(12, 24), conv_kernel_dimensions=(5, 5),
+                      fc_layers_num_neurons=(1000, 200, 30), batch_size=30, train_classes_ratio=Fraction(2, 1),
+                      train_rate=0.001, train_num_iterate=100000)
+    cnn.init_net_session()
+    cnn.run(cnn.RUN_TRAIN)
+    cnn.close()
 
     messagebox.showinfo(title="Classifier", message="Mission complete")
 
