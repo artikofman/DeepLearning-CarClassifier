@@ -36,9 +36,9 @@ def main():
                       non_vehicles_train_path="C:\\Users\\orik\\DLImages\\non-vehicles\\Train\\",
                       vehicles_test_path="C:\\Users\\orik\\DLImages\\vehicles\\Test\\",
                       non_vehicles_test_path="C:\\Users\\orik\\DLImages\\non-vehicles\\Test\\",
-                      image_shape=(64, 64), conv_layers_num_kernels=(12, 24), conv_kernel_dimensions=(5, 5),
-                      fc_layers_num_neurons=(1000, 200, 30), batch_size=30, train_classes_ratio=Fraction(2, 1),
-                      train_rate=0.001, train_num_iterate=100000)
+                      image_shape=(64, 64), conv_layers_num_kernels=(10, 20, 30, 40, 50), conv_kernel_dimensions=(8, 8),
+                      fc_layers_num_neurons=(50,), batch_size=28, train_classes_ratio=Fraction(3, 1),
+                      train_rate=0.0001, train_num_iterate=100000, train_num_show_status=2000)
     cnn.init_net_session()
     cnn.run(cnn.RUN_TRAIN)
     cnn.close()

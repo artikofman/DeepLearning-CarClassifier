@@ -16,7 +16,7 @@ class ConvNetwork:
     def __init__(self, vehicles_train_path, non_vehicles_train_path, vehicles_test_path, non_vehicles_test_path,
                  image_shape: tuple, conv_layers_num_kernels: tuple, conv_kernel_dimensions: tuple,
                  fc_layers_num_neurons: tuple, batch_size: int, train_classes_ratio: Fraction, train_rate: float,
-                 train_num_iterate):
+                 train_num_iterate, train_num_show_status=50):
 
         """
         Args:
@@ -39,6 +39,7 @@ class ConvNetwork:
                                                  self.__train_classes_ratio__)
         self.__image_shape__ = image_shape
         self.__train_num_iterate__ = train_num_iterate
+        self.__train_num_show_status__ = train_num_show_status
         self.__train_rate__ = train_rate
         self.__num_inputs__ = image_shape[0] * image_shape[1]  # The total number of pixels in each input image
         self.__conv_layers_num_kernels__ = conv_layers_num_kernels
@@ -95,7 +96,8 @@ class ConvNetwork:
                 prev_pool = self.__conv_pools__[i - 1]
             self.__conv_weights__.append(tf.Variable(
                 tf.truncated_normal([kernel_r, kernel_c, prev_dim, num], stddev=0.1)))
-            self.__conv_biases__.append(tf.Variable(tf.constant(0.1, shape=[num])))
+            # self.__conv_biases__.append(tf.Variable(tf.constant(0.1, shape=[num])))  TODO
+            self.__conv_biases__.append(tf.Variable(tf.truncated_normal(shape=[num], stddev=0.1)))
             self.__conv_outputs__.append(
                 tf.nn.conv2d(prev_pool, self.__conv_weights__[i], strides=[1, 1, 1, 1],
                              padding=ConvNetwork.CONST_PADDING) + self.__conv_biases__[i])
@@ -132,7 +134,7 @@ class ConvNetwork:
         if self.__closed__:
             raise Exception("Network has been closed.")
         self.__sess__.run(tf.global_variables_initializer())
-        self.__sess__.run(tf.local_variables_initializer())
+        # self.__sess__.run(tf.local_variables_initializer())  TODO
         self.__initialized__ = True
 
     def close(self):
@@ -159,8 +161,8 @@ class ConvNetwork:
             num_iterate = self.__train_num_iterate__
             next_batch_getter = self.__images_cntrl__.get_next_train_batch
             fetches = [self.__train_update__, self.__train_loss__, distance_tensor]
-            if num_iterate >= 50:
-                interval_show_status = num_iterate // 50
+            if num_iterate >= self.__train_num_show_status__:
+                interval_show_status = num_iterate // self.__train_num_show_status__
             else:
                 interval_show_status = 1
             kernel = "({0}, {1})".format(str(self.__conv_kernel_dimensions__[0]),
