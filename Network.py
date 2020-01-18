@@ -13,7 +13,7 @@ class Network:
 
     def __init__(self, vehicles_train_path, non_vehicles_train_path, vehicles_test_path, non_vehicles_test_path,
                  image_shape: tuple, inner_layers_num_neurons: tuple, batch_size: int, train_classes_ratio: Fraction,
-                 train_rate: float, train_num_iterate):
+                 train_rate: float, train_num_iterate, train_num_show_status=50):
         self.__batch_size__ = batch_size
         self.__train_classes_ratio__ = train_classes_ratio
         self.__images_cntrl__ = ImagesController(vehicles_train_path, non_vehicles_train_path,
@@ -25,6 +25,7 @@ class Network:
         self.__num_inputs__ = image_shape[0] * image_shape[1]
         self.__inner_layers_num_neurons__ = inner_layers_num_neurons
         self.__num_inner_layers__ = len(self.__inner_layers_num_neurons__)
+        self.__train_num_show_status__ = train_num_show_status
         self.__input__ = tf.placeholder(tf.float32, [None, self.__num_inputs__])
         self.__real__ = tf.placeholder(tf.float32, [None, 1])
         self._init_layers()
@@ -60,7 +61,7 @@ class Network:
         if self.__closed__:
             raise Exception("Network has been closed.")
         self.__sess__.run(tf.global_variables_initializer())
-        self.__sess__.run(tf.local_variables_initializer())
+        # self.__sess__.run(tf.local_variables_initializer())
         self.__initialized__ = True
 
     def close(self):
@@ -87,8 +88,8 @@ class Network:
             num_iterate = self.__train_num_iterate__
             next_batch_getter = self.__images_cntrl__.get_next_train_batch
             fetches = [self.__update__, self.__loss__, distance_tensor]
-            if num_iterate >= 50:
-                interval_show_status = num_iterate // 50
+            if num_iterate >= self.__train_num_show_status__:
+                interval_show_status = num_iterate // self.__train_num_show_status__
             else:
                 interval_show_status = 1
             layers = str(self.__num_inputs__) + " -> " + \

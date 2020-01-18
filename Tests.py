@@ -84,6 +84,14 @@ def fract():
     i = 1
 
 
+def rgb_to_grayscale():
+    source_files = glob(pathname="C:\\Users\\orik\\Python\\Projects\\ParkingManager\\Images\\RGB\\\\**\\*.png"
+                        , recursive=True)
+
+    for path in source_files:
+        img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+        cv2.imwrite(path.replace("RGB", "GrayScale", 1), img)
+
+
 if __name__ == '__main__':
-    # fract()
-    print(datetime.now())
+    rgb_to_grayscale()

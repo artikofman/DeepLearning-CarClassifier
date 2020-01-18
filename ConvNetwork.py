@@ -70,11 +70,12 @@ class ConvNetwork:
         self.__fc_batch_input_num_cols__ = num_rows_last_conv * num_cols_last_conv * num_kernels_last_conv
         self.__conv_flat_output__ = tf.reshape(self.__conv_pools__[-1], [-1, self.__fc_batch_input_num_cols__])
 
+        self.__dropout_rate__ = tf.placeholder(tf.float32)
         self._init_fc_layers()
         self._init_final_layer()
         self.__train_loss__ = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.__real__,
                                                                                      logits=self.__final_output__))
-        self.__train_update__ = tf.train.GradientDescentOptimizer(self.__train_rate__).minimize(self.__train_loss__)
+        self.__train_update__ = tf.train.AdamOptimizer(self.__train_rate__).minimize(self.__train_loss__)
         self.__sess__ = tf.Session()
         self.__initialized__ = False
         self.__closed__ = False
@@ -96,7 +97,7 @@ class ConvNetwork:
                 prev_pool = self.__conv_pools__[i - 1]
             self.__conv_weights__.append(tf.Variable(
                 tf.truncated_normal([kernel_r, kernel_c, prev_dim, num], stddev=0.1)))
-            # self.__conv_biases__.append(tf.Variable(tf.constant(0.1, shape=[num])))  TODO
+            # self.__conv_biases__.append(tf.Variable(tf.constant(0.1, shape=[num])))
             self.__conv_biases__.append(tf.Variable(tf.truncated_normal(shape=[num], stddev=0.1)))
             self.__conv_outputs__.append(
                 tf.nn.conv2d(prev_pool, self.__conv_weights__[i], strides=[1, 1, 1, 1],
@@ -116,17 +117,18 @@ class ConvNetwork:
                 prev_output = self.__conv_flat_output__
             else:
                 prev_dim = self.__fc_layers_num_neurons__[i - 1]
-                prev_output = self.__fc_activations__[i - 1]
+                prev_output = tf.nn.dropout(self.__fc_activations__[i - 1], rate=self.__dropout_rate__)
             self.__fc_weights__.append(tf.Variable(tf.truncated_normal(shape=[prev_dim, num], stddev=0.1)))
             self.__fc_biases__.append(tf.Variable(tf.truncated_normal(shape=[num], stddev=0.1)))
             self.__fc_outputs__.append(tf.matmul(prev_output, self.__fc_weights__[i]) + self.__fc_biases__[i])
             self.__fc_activations__.append(tf.nn.relu(self.__fc_outputs__[i]))
 
     def _init_final_layer(self):
+        prev_output = tf.nn.dropout(self.__fc_activations__[-1], rate=self.__dropout_rate__)
         self.__fc_weights__.append(tf.Variable(tf.truncated_normal(shape=[self.__fc_layers_num_neurons__[-1], 1],
                                                                    stddev=0.1)))
         self.__fc_biases__.append(tf.Variable(tf.truncated_normal(shape=[1], stddev=0.1)))
-        self.__fc_outputs__.append(tf.matmul(self.__fc_activations__[-1], self.__fc_weights__[-1]) +
+        self.__fc_outputs__.append(tf.matmul(prev_output, self.__fc_weights__[-1]) +
                                    self.__fc_biases__[-1])
         self.__final_output__ = tf.nn.sigmoid(self.__fc_outputs__[-1])
 
@@ -134,7 +136,7 @@ class ConvNetwork:
         if self.__closed__:
             raise Exception("Network has been closed.")
         self.__sess__.run(tf.global_variables_initializer())
-        # self.__sess__.run(tf.local_variables_initializer())  TODO
+        # self.__sess__.run(tf.local_variables_initializer())
         self.__initialized__ = True
 
     def close(self):
@@ -161,6 +163,7 @@ class ConvNetwork:
             num_iterate = self.__train_num_iterate__
             next_batch_getter = self.__images_cntrl__.get_next_train_batch
             fetches = [self.__train_update__, self.__train_loss__, distance_tensor]
+            dropout_rate = 0.5
             if num_iterate >= self.__train_num_show_status__:
                 interval_show_status = num_iterate // self.__train_num_show_status__
             else:
@@ -187,6 +190,7 @@ class ConvNetwork:
                           (1 if self.__images_cntrl__.num_test % self.__batch_size__ > 0 else 0)
             next_batch_getter = self.__images_cntrl__.get_next_test_batch
             fetches = [self.__final_output__, self.__train_loss__, distance_tensor]
+            dropout_rate = 1.0
             interval_show_status = 0
 
         i = 0
@@ -196,9 +200,10 @@ class ConvNetwork:
             if batch_xs is None:
                 has_more_images = False
             else:
-                _, curr_loss, curr_distance = self.__sess__.run(fetches=fetches,
-                                                                feed_dict={self.__raw_input_batch__: batch_xs,
-                                                                           self.__real__: batch_ys})
+                _, curr_loss, curr_distance = \
+                    self.__sess__.run(fetches=fetches,
+                                      feed_dict={self.__raw_input_batch__: batch_xs, self.__real__: batch_ys,
+                                                 self.__dropout_rate__: dropout_rate})
                 curr_accuracy = True if curr_distance <= 0.02 else False
                 if run_type == ConvNetwork.RUN_TRAIN:
                     loss_queue.append(curr_loss)
@@ -234,73 +239,3 @@ class ConvNetwork:
             else:
                 print("\nCNN test end. %s\nFinal loss %0.2f. Final accuracy %0.2f percents.\n"
                       % (datetime.now(), loss_mean, 100 * (num_true / num_iterate)))
-
-    """
-    def _init_layers(self):
-        prev_num = self.__inner_layers_num_neurons__[0]
-        self.__weights__ = [tf.Variable(tf.truncated_normal(shape=[self.__num_inputs__, prev_num], stddev=0.1))]
-        self.__biases__ = [tf.Variable(tf.truncated_normal(shape=[prev_num], stddev=0.1))]
-        self.__outputs__ = [tf.nn.relu(tf.matmul(self.__raw_input_batch__, self.__weights__[0]) + self.__biases__[0])]
-        for i in range(1, self.__num_inner_layers__):
-            curr_num = self.__inner_layers_num_neurons__[i]
-            self.__weights__.append(tf.Variable(tf.truncated_normal(shape=[prev_num, curr_num], stddev=0.1)))
-            self.__biases__.append(tf.Variable(tf.truncated_normal(shape=[curr_num], stddev=0.1)))
-            self.__outputs__.append(
-                tf.nn.relu(tf.matmul(self.__outputs__[i - 1], self.__weights__[i]) + self.__biases__[i]))
-            prev_num = curr_num
-        self.__weights__.append(tf.Variable(tf.truncated_normal(shape=[prev_num, 1], stddev=0.1)))
-        self.__biases__.append(tf.Variable(tf.truncated_normal(shape=[1], stddev=0.1)))
-        self.__outputs__.append(
-            tf.matmul(self.__outputs__[self.__num_inner_layers__ - 1], self.__weights__[self.__num_inner_layers__]) +
-            self.__biases__[self.__num_inner_layers__])
-        self.__output__ = tf.nn.sigmoid(self.__outputs__[self.__num_inner_layers__])
-    """
-
-"""
-# TEMP
-x = tf.placeholder(tf.float32, shape=[None, 784])
-y_ = tf.placeholder(tf.float32, shape=[None, 10])
-
-W_conv1 = tf.Variable(tf.truncated_normal([5, 5, 1, 32], stddev=0.1))
-b_conv1 = tf.Variable(tf.constant(0.1, shape=[32]))
-x_image = tf.reshape(x, [-1, 28, 28, 1])  # if we had RGB, we would have 3 channels
-
-h_conv1 = tf.nn.relu(tf.nn.conv2d(x_image, W_conv1, strides=[1, 1, 1, 1], padding='SAME') + b_conv1)
-h_pool1 = tf.nn.max_pool(h_conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-
-W_conv2 = tf.Variable(tf.truncated_normal([5, 5, 32, 64], stddev=0.1))
-b_conv2 = tf.Variable(tf.constant(0.1, shape=[64]))
-
-h_conv2 = tf.nn.relu(tf.nn.conv2d(h_pool1, W_conv2, strides=[1, 1, 1, 1], padding='SAME') + b_conv2)
-h_pool2 = tf.nn.max_pool(h_conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-
-h_pool2_flat = tf.reshape(h_pool2, [-1, 7 * 7 * 64])
-W_fc1 = tf.Variable(tf.truncated_normal([7 * 7 * 64, 1024], stddev=0.1))
-b_fc1 = tf.Variable(tf.constant(0.1, shape=[1024]))
-
-h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-
-keep_prob = tf.placeholder(tf.float32)
-h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-W_fc2 = tf.Variable(tf.truncated_normal([1024, 10], stddev=0.1))
-b_fc2 = tf.Variable(tf.constant(0.1, shape=[10]))
-
-y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
-
-cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y_conv), reduction_indices=[1]))
-train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)  # uses moving averages momentum
-correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-sess = tf.InteractiveSession()
-sess.run(tf.global_variables_initializer())
-
-for i in range(20000):
-    batch = mnist.train.next_batch(50)
-    if i % 100 == 0:
-        train_accuracy = accuracy.eval(feed_dict={x: batch[0], y_: batch[1], keep_prob: 1.0})
-        print("step %d, training accuracy %g" % (i, train_accuracy))
-    train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
-
-print("test accuracy %g" % accuracy.eval(feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
-"""
