@@ -190,7 +190,7 @@ class ConvNetwork:
                           (1 if self.__images_cntrl__.num_test % self.__batch_size__ > 0 else 0)
             next_batch_getter = self.__images_cntrl__.get_next_test_batch
             fetches = [self.__final_output__, self.__train_loss__, distance_tensor]
-            dropout_rate = 1.0
+            dropout_rate = 0.0
             interval_show_status = 0
 
         i = 0
