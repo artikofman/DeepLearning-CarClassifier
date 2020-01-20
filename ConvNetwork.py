@@ -30,6 +30,10 @@ class ConvNetwork:
             train_classes_ratio: An object representing the ratio of vehicles-images to non-vehicles-images in the
                 training step. A ratio of 2-to-1, e.g., means, that the network will be fed with 2 images of vehicles
                 to every single image of non-vehicle.
+            train_num_iterate: The number of iterations that need to be done at the training phase, when single
+                iteration feeds the network with a batch contains batch_size images.
+            train_num_show_status: The number of times 'run' method should show running status to the console, at the
+                training phase.
         """
 
         self.__batch_size__ = batch_size
@@ -63,14 +67,18 @@ class ConvNetwork:
         # Given that invoking self._init_conv_layers declared and created the last convolutional layer, the one held
         # in self.__conv_pools__[-1], and that each max-pooling layer reduces its input by 2,
         # the lines following declare and initialize self.__conv_flat_output__ as a flat tensor of
-        # the last convolutional layer. This tensor is the input of the fully-connected step of our CNN.
+        # the last convolutional layer. This tensor is the input of the fully-connected-layers step of our CNN.
         num_rows_last_conv = int(image_shape[0] / (2 ** len(self.__conv_layers_num_kernels__)))  # First dimension of each one of last kernels. Numbers of rows.
         num_cols_last_conv = int(image_shape[1] / (2 ** len(self.__conv_layers_num_kernels__)))  # Second dimension of each one of last kernels. Numbers of columns.
         num_kernels_last_conv = self.__conv_layers_num_kernels__[-1]
         self.__fc_batch_input_num_cols__ = num_rows_last_conv * num_cols_last_conv * num_kernels_last_conv
         self.__conv_flat_output__ = tf.reshape(self.__conv_pools__[-1], [-1, self.__fc_batch_input_num_cols__])
 
+        # A tf-placeholder that at train/test phases will get the rate (from 0 to 1) of fully-connected-layers neurons
+        # that have to be dropped, in order to avoid over-fitting.
+        # This placeholder will get the value 0 at test phase.
         self.__dropout_rate__ = tf.placeholder(tf.float32)
+
         self._init_fc_layers()
         self._init_final_layer()
         self.__train_loss__ = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.__real__,
